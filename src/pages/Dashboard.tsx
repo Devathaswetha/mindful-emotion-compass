@@ -16,6 +16,7 @@ import {
   Legend
 } from 'chart.js';
 import { getRecommendationsForMood, Recommendation } from "@/lib/recommendations";
+import { MoodEntry } from "@/lib/mockData";
 
 // Register ChartJS components
 ChartJS.register(
@@ -33,6 +34,7 @@ const Dashboard = () => {
   const [greeting, setGreeting] = useState("");
   const [currentMood, setCurrentMood] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
   const [moodData, setMoodData] = useState({
     labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     datasets: [
@@ -62,6 +64,22 @@ const Dashboard = () => {
       title: "Welcome to MindfulMe",
       description: "Your pocket companion for mental wellness",
     });
+    
+    // Load mood history from localStorage
+    const savedMoodHistory = localStorage.getItem('moodHistory');
+    if (savedMoodHistory) {
+      try {
+        const parsedHistory = JSON.parse(savedMoodHistory);
+        setMoodHistory(parsedHistory);
+        
+        // Update chart data with actual mood history if available
+        if (parsedHistory.length > 0) {
+          updateChartFromHistory(parsedHistory);
+        }
+      } catch (e) {
+        console.error('Error loading mood history:', e);
+      }
+    }
   }, [toast]);
   
   // Update recommendations when mood changes
@@ -71,6 +89,37 @@ const Dashboard = () => {
       setRecommendations(newRecommendations);
     }
   }, [currentMood]);
+  
+  // Function to update chart data from mood history
+  const updateChartFromHistory = (history: MoodEntry[]) => {
+    if (!history.length) return;
+    
+    // Sort by date (oldest to newest)
+    const sortedEntries = [...history].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    
+    // Take only the last 7 days
+    const recentEntries = sortedEntries.slice(-7);
+    
+    if (recentEntries.length > 0) {
+      setMoodData({
+        labels: recentEntries.map(entry => {
+          const date = new Date(entry.date);
+          return date.toLocaleDateString('en-US', { weekday: 'short' });
+        }),
+        datasets: [
+          {
+            label: 'Mood Intensity',
+            data: recentEntries.map(entry => entry.intensity),
+            borderColor: '#9b87f5',
+            backgroundColor: 'rgba(155, 135, 245, 0.1)',
+            tension: 0.4,
+          },
+        ],
+      });
+    }
+  };
 
   // Chart options
   const chartOptions = {
@@ -99,6 +148,13 @@ const Dashboard = () => {
       description: `Great! You're feeling ${mood} today.` 
     });
   };
+
+  // Get latest mood entry if available
+  const latestMood = moodHistory.length > 0 
+    ? moodHistory.sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      )[0]
+    : null;
 
   return (
     <div className="space-y-6">
@@ -161,6 +217,19 @@ const Dashboard = () => {
                 <div className="text-xs mt-1">Neutral</div>
               </button>
             </div>
+            {latestMood && !currentMood && (
+              <div className="text-sm text-center mt-2">
+                <p>Last recorded mood: <span className="font-medium">{latestMood.mood}</span></p>
+                <Link to="/mood">
+                  <Button 
+                    variant="link" 
+                    className="p-0 h-auto text-mindful-primary"
+                  >
+                    View mood history
+                  </Button>
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -230,6 +299,16 @@ const Dashboard = () => {
         <CardContent>
           <div className="h-80">
             <Line data={moodData} options={chartOptions} />
+          </div>
+          <div className="text-center mt-4">
+            <Link to="/mood">
+              <Button 
+                variant="outline" 
+                className="text-mindful-primary border-mindful-primary hover:bg-mindful-soft"
+              >
+                View Full Mood History
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>

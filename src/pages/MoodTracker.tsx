@@ -10,6 +10,9 @@ import MoodSelector from '@/components/mood/MoodSelector';
 import CameraEmotionDetector from '@/components/mood/CameraEmotionDetector';
 import AudioEmotionTab from '@/components/mood/AudioEmotionTab';
 import MoodContext from '@/components/mood/MoodContext';
+import MoodHistory from '@/components/mood/MoodHistory';
+import MoodRecommendations from '@/components/mood/MoodRecommendations';
+import { MoodEntry } from '@/lib/mockData';
 
 const emotions = ['Happy', 'Sad', 'Angry', 'Surprised', 'Neutral'];
 
@@ -23,6 +26,7 @@ const MoodTracker = () => {
   const [moodContext, setMoodContext] = useState('');
   const [emotionModel, setEmotionModel] = useState<any>(null);
   const [audioEmotion, setAudioEmotion] = useState<string | null>(null);
+  const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
   
   const availableTags = ['Work', 'Family', 'Friends', 'Health', 'Sleep', 'Exercise', 'Meditation'];
 
@@ -42,6 +46,18 @@ const MoodTracker = () => {
     };
 
     loadModel();
+  }, []);
+
+  // Load mood history from localStorage on component mount
+  useEffect(() => {
+    const savedMoodHistory = localStorage.getItem('moodHistory');
+    if (savedMoodHistory) {
+      try {
+        setMoodHistory(JSON.parse(savedMoodHistory));
+      } catch (e) {
+        console.error('Error loading mood history:', e);
+      }
+    }
   }, []);
 
   const handleAudioEmotionDetected = (result: AudioEmotionDetectionResult) => {
@@ -69,7 +85,25 @@ const MoodTracker = () => {
       return;
     }
 
-    // In a real app, we would save this to a database
+    // Create new mood entry
+    const newMoodEntry: MoodEntry = {
+      id: `mood-${Date.now()}`,
+      date: new Date().toISOString(),
+      mood: selectedMood,
+      intensity: moodIntensity,
+      tags: [...moodTags],
+      notes: moodContext || undefined,
+      aiDetectedEmotion: detectedEmotion || audioEmotion
+    };
+
+    // Update mood history
+    const updatedHistory = [newMoodEntry, ...moodHistory];
+    setMoodHistory(updatedHistory);
+    
+    // Save to localStorage
+    localStorage.setItem('moodHistory', JSON.stringify(updatedHistory));
+
+    // Display toast
     toast({
       title: "Mood Saved",
       description: `You're feeling ${selectedMood} (intensity: ${moodIntensity}/5)`
@@ -92,6 +126,16 @@ const MoodTracker = () => {
 
   const handleEmotionDetected = (emotion: string) => {
     setDetectedEmotion(emotion);
+  };
+
+  const handleDeleteMoodEntry = (id: string) => {
+    const updatedHistory = moodHistory.filter(entry => entry.id !== id);
+    setMoodHistory(updatedHistory);
+    localStorage.setItem('moodHistory', JSON.stringify(updatedHistory));
+    toast({
+      title: "Entry Deleted",
+      description: "Mood entry has been removed from your history."
+    });
   };
 
   return (
@@ -142,6 +186,17 @@ const MoodTracker = () => {
               </TabsContent>
             </Tabs>
 
+            {/* Mood recommendations when mood is selected */}
+            {selectedMood && (
+              <div className="mt-6">
+                <MoodRecommendations 
+                  mood={selectedMood} 
+                  intensity={moodIntensity}
+                  tags={moodTags}
+                />
+              </div>
+            )}
+
             {/* Mood context (intensity, tags, notes) */}
             {selectedMood && (
               <MoodContext
@@ -166,6 +221,9 @@ const MoodTracker = () => {
           </Button>
         </CardFooter>
       </Card>
+
+      {/* Mood History Card */}
+      <MoodHistory moodHistory={moodHistory} onDeleteEntry={handleDeleteMoodEntry} />
     </div>
   );
 };
