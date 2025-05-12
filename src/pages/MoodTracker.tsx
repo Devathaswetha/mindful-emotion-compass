@@ -3,16 +3,20 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Webcam from 'react-webcam';
 import { 
   loadEmotionDetectionModel, 
   getImageDataFromVideo, 
   processImageForEmotionDetection
 } from '@/lib/emotionDetection';
+import AudioMoodAnalyzer from '@/components/AudioMoodAnalyzer';
+import { AudioEmotionDetectionResult } from '@/lib/audioEmotionDetection';
 
 const emotions = ['Happy', 'Sad', 'Angry', 'Surprised', 'Neutral'];
 
 const MoodTracker = () => {
+  const [activeTab, setActiveTab] = useState('manual');
   const [showCamera, setShowCamera] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
@@ -22,6 +26,7 @@ const MoodTracker = () => {
   const [moodTags, setMoodTags] = useState<string[]>([]);
   const [moodContext, setMoodContext] = useState('');
   const [emotionModel, setEmotionModel] = useState<any>(null);
+  const [audioEmotion, setAudioEmotion] = useState<string | null>(null);
   
   const webcamRef = useRef<Webcam>(null);
   const availableTags = ['Work', 'Family', 'Friends', 'Health', 'Sleep', 'Exercise', 'Meditation'];
@@ -95,6 +100,13 @@ const MoodTracker = () => {
     }
   };
 
+  const handleAudioEmotionDetected = (result: AudioEmotionDetectionResult) => {
+    setAudioEmotion(result.emotion);
+    if (!selectedMood) {
+      setSelectedMood(result.emotion);
+    }
+  };
+
   const toggleTag = (tag: string) => {
     if (moodTags.includes(tag)) {
       setMoodTags(moodTags.filter(t => t !== tag));
@@ -125,7 +137,9 @@ const MoodTracker = () => {
     setMoodTags([]);
     setMoodContext('');
     setDetectedEmotion(null);
+    setAudioEmotion(null);
     setShowCamera(false);
+    setActiveTab('manual');
   };
 
   return (
@@ -139,96 +153,129 @@ const MoodTracker = () => {
         <CardHeader>
           <CardTitle>How are you feeling?</CardTitle>
           <CardDescription>
-            Select your mood or use the camera to help identify your emotions
+            Select your mood or use technology to help identify your emotions
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {/* Camera section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Emotion Detection</h3>
+            <Tabs defaultValue="manual" value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="manual">Manual Select</TabsTrigger>
+                <TabsTrigger value="camera">Camera Check-in</TabsTrigger>
+                <TabsTrigger value="voice">Voice Check-in</TabsTrigger>
+              </TabsList>
               
-              <div className="flex flex-col items-center">
-                {!showCamera ? (
-                  <Button 
-                    onClick={handleCameraToggle} 
-                    className="bg-mindful-primary hover:bg-mindful-secondary"
-                    disabled={isModelLoading}
-                  >
-                    {isModelLoading ? "Loading model..." : "Enable Camera Check-in"}
-                  </Button>
-                ) : (
-                  <div className="space-y-4 w-full">
-                    <div className="relative max-w-md mx-auto">
-                      <Webcam
-                        audio={false}
-                        ref={webcamRef}
-                        screenshotFormat="image/jpeg"
-                        videoConstraints={{
-                          facingMode: "user"
-                        }}
-                        className="w-full rounded-lg border border-gray-300"
-                      />
+              <TabsContent value="manual" className="space-y-4">
+                <h3 className="text-lg font-medium">Select Your Mood</h3>
+                
+                <div className="grid grid-cols-5 gap-2">
+                  {["😊", "😢", "😠", "😮", "😐"].map((emoji, index) => (
+                    <button
+                      key={emoji}
+                      className={`p-3 rounded-lg text-3xl transition-all ${
+                        selectedMood === emotions[index]
+                          ? "bg-mindful-soft ring-2 ring-mindful-primary"
+                          : "bg-white hover:bg-gray-100"
+                      }`}
+                      onClick={() => setSelectedMood(emotions[index])}
+                    >
+                      {emoji}
+                      <div className="text-xs mt-1">{emotions[index]}</div>
+                    </button>
+                  ))}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="camera" className="space-y-4">
+                <h3 className="text-lg font-medium">Emotion Detection</h3>
+                
+                <div className="flex flex-col items-center">
+                  {!showCamera ? (
+                    <Button 
+                      onClick={handleCameraToggle} 
+                      className="bg-mindful-primary hover:bg-mindful-secondary"
+                      disabled={isModelLoading}
+                    >
+                      {isModelLoading ? "Loading model..." : "Enable Camera Check-in"}
+                    </Button>
+                  ) : (
+                    <div className="space-y-4 w-full">
+                      <div className="relative max-w-md mx-auto">
+                        <Webcam
+                          audio={false}
+                          ref={webcamRef}
+                          screenshotFormat="image/jpeg"
+                          videoConstraints={{
+                            facingMode: "user"
+                          }}
+                          className="w-full rounded-lg border border-gray-300"
+                        />
+                        
+                        {isLoading && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+                          </div>
+                        )}
+                      </div>
                       
-                      {isLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
-                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+                      <div className="flex justify-center space-x-4">
+                        <Button 
+                          onClick={handleCapture} 
+                          disabled={isLoading || isModelLoading}
+                          className="bg-mindful-primary hover:bg-mindful-secondary"
+                        >
+                          {isLoading ? "Detecting..." : "Detect Emotion"}
+                        </Button>
+                        
+                        <Button 
+                          onClick={handleCameraToggle} 
+                          variant="outline"
+                        >
+                          Close Camera
+                        </Button>
+                      </div>
+                      
+                      {detectedEmotion && (
+                        <div className="mt-4 p-4 bg-mindful-soft rounded-lg text-center">
+                          <p className="text-lg font-medium">Suggested emotion:</p>
+                          <p className="text-2xl text-mindful-primary font-bold">{detectedEmotion}</p>
+                          <p className="mt-2 text-sm text-gray-500">
+                            Is this correct? You can adjust your selection below.
+                          </p>
+                          <Button
+                            className="mt-2 bg-mindful-primary hover:bg-mindful-secondary"
+                            onClick={() => {
+                              setSelectedMood(detectedEmotion);
+                              setActiveTab('manual');
+                            }}
+                          >
+                            Use This Emotion
+                          </Button>
                         </div>
                       )}
                     </div>
-                    
-                    <div className="flex justify-center space-x-4">
-                      <Button 
-                        onClick={handleCapture} 
-                        disabled={isLoading || isModelLoading}
-                        className="bg-mindful-primary hover:bg-mindful-secondary"
-                      >
-                        {isLoading ? "Detecting..." : "Detect Emotion"}
-                      </Button>
-                      
-                      <Button 
-                        onClick={handleCameraToggle} 
-                        variant="outline"
-                      >
-                        Close Camera
-                      </Button>
-                    </div>
-                    
-                    {detectedEmotion && (
-                      <div className="mt-4 p-4 bg-mindful-soft rounded-lg text-center">
-                        <p className="text-lg font-medium">Suggested emotion:</p>
-                        <p className="text-2xl text-mindful-primary font-bold">{detectedEmotion}</p>
-                        <p className="mt-2 text-sm text-gray-500">
-                          Is this correct? You can adjust your selection below.
-                        </p>
-                      </div>
-                    )}
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="voice" className="space-y-4">
+                <AudioMoodAnalyzer onEmotionDetected={handleAudioEmotionDetected} />
+                
+                {audioEmotion && (
+                  <div className="mt-2 text-center">
+                    <Button
+                      className="bg-mindful-primary hover:bg-mindful-secondary"
+                      onClick={() => {
+                        setSelectedMood(audioEmotion);
+                        setActiveTab('manual');
+                      }}
+                    >
+                      Use Voice Analysis Result
+                    </Button>
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* Manual mood selection */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Select Your Mood</h3>
-              
-              <div className="grid grid-cols-5 gap-2">
-                {["😊", "😢", "😠", "😮", "😐"].map((emoji, index) => (
-                  <button
-                    key={emoji}
-                    className={`p-3 rounded-lg text-3xl transition-all ${
-                      selectedMood === emotions[index]
-                        ? "bg-mindful-soft ring-2 ring-mindful-primary"
-                        : "bg-white hover:bg-gray-100"
-                    }`}
-                    onClick={() => setSelectedMood(emotions[index])}
-                  >
-                    {emoji}
-                    <div className="text-xs mt-1">{emotions[index]}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+              </TabsContent>
+            </Tabs>
 
             {/* Mood intensity */}
             {selectedMood && (

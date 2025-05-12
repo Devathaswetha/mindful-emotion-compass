@@ -1,10 +1,22 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useToast } from "@/components/ui/use-toast";
 
 const Meditations = () => {
-  const [activeCategory, setActiveCategory] = useState('all');
+  const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryParam = searchParams.get('category');
+  const [activeCategory, setActiveCategory] = useState(categoryParam || 'all');
+
+  // Update active category when URL parameter changes
+  useEffect(() => {
+    if (categoryParam && categories.some(cat => cat.id === categoryParam)) {
+      setActiveCategory(categoryParam);
+    }
+  }, [categoryParam]);
 
   const categories = [
     { id: 'all', name: 'All' },
@@ -21,7 +33,8 @@ const Meditations = () => {
       description: 'Start your day with calm and intention',
       duration: '5 min',
       category: 'beginner',
-      image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8bWVkaXRhdGlvbnxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60'
+      image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8bWVkaXRhdGlvbnxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60',
+      audioUrl: 'https://example.com/meditations/morning-mindfulness.mp3'
     },
     {
       id: 2,
@@ -29,7 +42,8 @@ const Meditations = () => {
       description: 'Combat stress with deep breathing techniques',
       duration: '10 min',
       category: 'stress',
-      image: 'https://images.unsplash.com/photo-1474418397713-2f1091382ad6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8YnJlYXRoaW5nfGVufDB8fDB8fHww&auto=format&fit=crop&w=500&q=60'
+      image: 'https://images.unsplash.com/photo-1474418397713-2f1091382ad6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8YnJlYXRoaW5nfGVufDB8fDB8fHww&auto=format&fit=crop&w=500&q=60',
+      audioUrl: 'https://example.com/meditations/stress-relief.mp3'
     },
     {
       id: 3,
@@ -37,7 +51,8 @@ const Meditations = () => {
       description: 'Guided visualization for restful sleep',
       duration: '15 min',
       category: 'sleep',
-      image: 'https://images.unsplash.com/photo-1455642305367-68834a9d4373?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8c2xlZXB8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60'
+      image: 'https://images.unsplash.com/photo-1455642305367-68834a9d4373?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8c2xlZXB8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60',
+      audioUrl: 'https://example.com/meditations/deep-sleep.mp3'
     },
     {
       id: 4,
@@ -45,7 +60,8 @@ const Meditations = () => {
       description: 'Improve concentration and mental clarity',
       duration: '10 min',
       category: 'focus',
-      image: 'https://images.unsplash.com/photo-1522163723043-478ef79a5bb4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fGZvY3VzfGVufDB8fDB8fHww&auto=format&fit=crop&w=500&q=60'
+      image: 'https://images.unsplash.com/photo-1522163723043-478ef79a5bb4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fGZvY3VzfGVufDB8fDB8fHww&auto=format&fit=crop&w=500&q=60',
+      audioUrl: 'https://example.com/meditations/focus.mp3'
     },
     {
       id: 5,
@@ -53,13 +69,28 @@ const Meditations = () => {
       description: 'Release tension throughout your body',
       duration: '12 min',
       category: 'stress',
-      image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8bWVkaXRhdGlvbnxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60'
+      image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8bWVkaXRhdGlvbnxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60',
+      audioUrl: 'https://example.com/meditations/body-scan.mp3'
     }
   ];
 
   const filteredMeditations = activeCategory === 'all'
     ? meditations
     : meditations.filter(item => item.category === activeCategory);
+
+  const handleCategoryChange = (categoryId: string) => {
+    setActiveCategory(categoryId);
+    setSearchParams(categoryId === 'all' ? {} : { category: categoryId });
+  };
+
+  const handleStartMeditation = (meditation: any) => {
+    toast({
+      title: "Starting meditation",
+      description: `${meditation.title} - ${meditation.duration}`,
+    });
+    // In a real app, this would launch the audio player with the meditation content
+    console.log(`Playing meditation: ${meditation.audioUrl}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -78,7 +109,7 @@ const Meditations = () => {
                 ? 'bg-mindful-primary text-white' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
-            onClick={() => setActiveCategory(category.id)}
+            onClick={() => handleCategoryChange(category.id)}
           >
             {category.name}
           </button>
@@ -106,7 +137,10 @@ const Meditations = () => {
               <CardDescription>{meditation.description}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full bg-mindful-primary hover:bg-mindful-secondary">
+              <Button 
+                className="w-full bg-mindful-primary hover:bg-mindful-secondary"
+                onClick={() => handleStartMeditation(meditation)}
+              >
                 Start Meditation
               </Button>
             </CardContent>
