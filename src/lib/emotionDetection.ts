@@ -2,8 +2,6 @@
 // This is a mock emotion detection service
 // In a real app, this would integrate with TensorFlow.js and a pre-trained model
 
-import * as tf from '@tensorflow/tfjs';
-
 export interface EmotionDetectionResult {
   emotion: string;
   confidence: number;
@@ -59,8 +57,6 @@ export const processImageForEmotionDetection = async (
   }
 };
 
-// Additional utility functions for a real implementation
-
 // Function to get image data from a video element
 export const getImageDataFromVideo = (videoElement: HTMLVideoElement): ImageData | null => {
   if (!videoElement) return null;
@@ -80,17 +76,9 @@ export const getImageDataFromVideo = (videoElement: HTMLVideoElement): ImageData
   return ctx.getImageData(0, 0, canvas.width, canvas.height);
 };
 
-// Function to preprocess tensor for model input
-export const preprocessImageForModel = (imageTensor: tf.Tensor3D): tf.Tensor => {
-  // Resize to model input size (e.g., 48x48 for many emotion models)
-  let resized = tf.image.resizeBilinear(imageTensor, [48, 48]);
-  
-  // Convert to grayscale if model expects it
-  const grayscale = tf.mean(resized, 2).expandDims(2);
-  
-  // Normalize pixel values to [0,1]
-  const normalized = tf.div(grayscale, 255.0);
-  
-  // Reshape to match model input (e.g., [1, 48, 48, 1])
-  return normalized.expandDims(0);
+// For this demo version, we'll use simplified preprocessing functions that don't require TensorFlow
+export const preprocessImageForModel = (imageData: ImageData): ImageData => {
+  // In a real app with TensorFlow, we would convert to tensor and apply preprocessing
+  // For now, we'll just pass through the image data
+  return imageData;
 };

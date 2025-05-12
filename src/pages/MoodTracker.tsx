@@ -4,8 +4,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import Webcam from 'react-webcam';
-import * as tf from '@tensorflow/tfjs';
-import * as faceLandmarksDetection from '@tensorflow-models/face-landmarks-detection';
+import { 
+  loadEmotionDetectionModel, 
+  getImageDataFromVideo, 
+  processImageForEmotionDetection
+} from '@/lib/emotionDetection';
 
 const emotions = ['Happy', 'Sad', 'Angry', 'Surprised', 'Neutral'];
 
@@ -18,24 +21,23 @@ const MoodTracker = () => {
   const [moodIntensity, setMoodIntensity] = useState(3);
   const [moodTags, setMoodTags] = useState<string[]>([]);
   const [moodContext, setMoodContext] = useState('');
-  const [detector, setDetector] = useState<any>(null);
+  const [emotionModel, setEmotionModel] = useState<any>(null);
   
   const webcamRef = useRef<Webcam>(null);
   const availableTags = ['Work', 'Family', 'Friends', 'Health', 'Sleep', 'Exercise', 'Meditation'];
 
-  // Initialize TensorFlow.js and load the model
+  // Load the emotion detection model
   useEffect(() => {
     const loadModel = async () => {
       try {
-        // Initialize TensorFlow.js
-        await tf.ready();
-        console.log('TensorFlow.js is ready');
-        
-        // For demonstration purposes, we won't actually load the full model
-        // In a real app, you would load the face detection model here
-        setDetector(true); // Mock the detector
+        setIsModelLoading(true);
+        const model = await loadEmotionDetectionModel();
+        setEmotionModel(model);
+        console.log('Emotion detection model loaded successfully');
       } catch (error) {
-        console.error('Failed to load TensorFlow.js:', error);
+        console.error('Failed to load emotion detection model:', error);
+      } finally {
+        setIsModelLoading(false);
       }
     };
 
@@ -52,31 +54,35 @@ const MoodTracker = () => {
   };
 
   const handleCapture = async () => {
-    if (!webcamRef.current) return;
+    if (!webcamRef.current || !webcamRef.current.video || !emotionModel) return;
     
     setIsLoading(true);
     
     try {
-      // In a real app, we would:
-      // 1. Capture the frame from the webcam
-      // 2. Process it with the face landmarks detection model
-      // 3. Extract facial features
-      // 4. Run those through an emotion classification model
+      // Get image data from webcam
+      const imageData = getImageDataFromVideo(webcamRef.current.video);
       
-      // For demonstration, we'll simulate processing time and randomly select an emotion
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
-      setDetectedEmotion(randomEmotion);
-      
-      // Simulate confidence scores
-      const confidenceText = `${randomEmotion} (${Math.floor(60 + Math.random() * 30)}% confidence)`;
-      
-      toast({
-        title: "Emotion Detected",
-        description: confidenceText
-      });
-      
+      if (imageData) {
+        // Process image with model
+        const result = await processImageForEmotionDetection(imageData, emotionModel);
+        
+        if (result) {
+          setDetectedEmotion(result.emotion);
+          
+          // Show toast with detected emotion
+          const confidencePercentage = Math.round(result.confidence * 100);
+          toast({
+            title: "Emotion Detected",
+            description: `${result.emotion} (${confidencePercentage}% confidence)`
+          });
+        } else {
+          toast({
+            title: "Detection Issue",
+            description: "Could not detect emotions clearly. Please try again.",
+            variant: "destructive"
+          });
+        }
+      }
     } catch (error) {
       console.error('Error capturing emotion:', error);
       toast({
@@ -147,8 +153,9 @@ const MoodTracker = () => {
                   <Button 
                     onClick={handleCameraToggle} 
                     className="bg-mindful-primary hover:bg-mindful-secondary"
+                    disabled={isModelLoading}
                   >
-                    Enable Camera Check-in
+                    {isModelLoading ? "Loading model..." : "Enable Camera Check-in"}
                   </Button>
                 ) : (
                   <div className="space-y-4 w-full">
