@@ -23,22 +23,22 @@ const MoodRecommendations = ({ mood, intensity, tags }: MoodRecommendationsProps
         {recommendations.map((rec, idx) => (
           <div 
             key={idx}
-            className="rounded-md bg-mindful-soft p-4 hover:bg-opacity-70 transition-colors"
+            className="rounded-md bg-mindful-soft dark:bg-opacity-10 p-4 hover:bg-opacity-70 transition-colors"
           >
             {rec.link ? (
               <Link to={rec.link}>
-                <h4 className="font-medium text-mindful-primary">{rec.title}</h4>
-                <p className="text-sm text-gray-500 mt-1">{rec.description}</p>
+                <h4 className="font-medium text-mindful-primary dark:text-mindful-light">{rec.title}</h4>
+                <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">{rec.description}</p>
                 {rec.duration && (
-                  <p className="text-xs text-gray-400 mt-1">{rec.duration}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{rec.duration}</p>
                 )}
               </Link>
             ) : (
               <>
-                <h4 className="font-medium text-mindful-primary">{rec.title}</h4>
-                <p className="text-sm text-gray-500 mt-1">{rec.description}</p>
+                <h4 className="font-medium text-mindful-primary dark:text-mindful-light">{rec.title}</h4>
+                <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">{rec.description}</p>
                 {rec.duration && (
-                  <p className="text-xs text-gray-400 mt-1">{rec.duration}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{rec.duration}</p>
                 )}
               </>
             )}

@@ -1,9 +1,9 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/use-toast';
+import { useTheme } from '@/components/ThemeProvider';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
@@ -13,12 +13,45 @@ const Settings = () => {
     darkMode: false,
     privacyMode: true
   });
+  
+  const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
+
+  // Load settings from localStorage on component mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('app_settings');
+    if (savedSettings) {
+      const parsedSettings = JSON.parse(savedSettings);
+      setSettings(parsedSettings);
+      
+      // Apply dark mode setting
+      if (parsedSettings.darkMode) {
+        setTheme('dark');
+      } else {
+        setTheme('light');
+      }
+    }
+  }, [setTheme]);
+
+  // Save settings to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('app_settings', JSON.stringify(settings));
+  }, [settings]);
 
   const handleSettingChange = (setting: keyof typeof settings) => {
-    setSettings(prev => ({
-      ...prev,
-      [setting]: !prev[setting]
-    }));
+    setSettings(prev => {
+      const newValue = !prev[setting];
+      
+      // Handle dark mode toggle
+      if (setting === 'darkMode') {
+        setTheme(newValue ? 'dark' : 'light');
+      }
+      
+      return {
+        ...prev,
+        [setting]: newValue
+      };
+    });
 
     toast({
       title: "Setting Updated",
@@ -27,15 +60,59 @@ const Settings = () => {
   };
 
   const handleExportData = () => {
-    // In a real app, this would generate a file for download
+    // Gather all data from localStorage
+    const journalEntries = localStorage.getItem('journal_entries') || '[]';
+    const moodHistory = localStorage.getItem('mood_history') || '[]';
+    const appSettings = localStorage.getItem('app_settings') || '{}';
+    
+    // Combine into a single object
+    const allData = {
+      journal_entries: JSON.parse(journalEntries),
+      mood_history: JSON.parse(moodHistory),
+      app_settings: JSON.parse(appSettings)
+    };
+    
+    // Convert to JSON string
+    const dataStr = JSON.stringify(allData, null, 2);
+    
+    // Create a blob and generate download link
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create temporary link and trigger download
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = `mindfulme_data_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    
     toast({
       title: "Data Export",
-      description: "Your data export has been prepared. Downloading now..."
+      description: "Your data export has been prepared and downloaded."
     });
   };
 
   const handleDeleteData = () => {
     // In a real app, this would show a confirmation dialog first
+    localStorage.removeItem('journal_entries');
+    localStorage.removeItem('mood_history');
+    
+    // Keep settings but reset to defaults
+    const defaultSettings = {
+      notifications: true,
+      faceDetection: false,
+      dataCollection: true, 
+      darkMode: false,
+      privacyMode: true
+    };
+    
+    setSettings(defaultSettings);
+    localStorage.setItem('app_settings', JSON.stringify(defaultSettings));
+    
+    // Set theme back to light if dark mode was enabled
+    setTheme('light');
+    
     toast({
       title: "Data Deleted",
       description: "All your data has been permanently deleted.",
@@ -46,8 +123,8 @@ const Settings = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-mindful-dark">Settings</h1>
-        <p className="text-gray-500">Manage your app preferences and privacy</p>
+        <h1 className="text-3xl font-bold text-mindful-dark dark:text-white">Settings</h1>
+        <p className="text-gray-500 dark:text-gray-400">Manage your app preferences and privacy</p>
       </div>
 
       <Card>
@@ -62,7 +139,7 @@ const Settings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Push Notifications</p>
-                <p className="text-sm text-gray-500">Receive reminders and updates</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Receive reminders and updates</p>
               </div>
               <Switch 
                 checked={settings.notifications} 
@@ -85,7 +162,7 @@ const Settings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Facial Emotion Detection</p>
-                <p className="text-sm text-gray-500">Use camera for emotion analysis (processing done on-device)</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Use camera for emotion analysis (processing done on-device)</p>
               </div>
               <Switch 
                 checked={settings.faceDetection} 
@@ -96,7 +173,7 @@ const Settings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Anonymous Data Collection</p>
-                <p className="text-sm text-gray-500">Help improve the app by sharing anonymous usage data</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Help improve the app by sharing anonymous usage data</p>
               </div>
               <Switch 
                 checked={settings.dataCollection} 
@@ -107,7 +184,7 @@ const Settings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Privacy Mode</p>
-                <p className="text-sm text-gray-500">Hide sensitive information when others might see your screen</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Hide sensitive information when others might see your screen</p>
               </div>
               <Switch 
                 checked={settings.privacyMode} 
@@ -121,7 +198,7 @@ const Settings = () => {
                 <Button variant="outline" onClick={handleExportData}>
                   Export My Data
                 </Button>
-                <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" onClick={handleDeleteData}>
+                <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 dark:border-red-800 dark:text-red-400" onClick={handleDeleteData}>
                   Delete All My Data
                 </Button>
               </div>
@@ -141,7 +218,7 @@ const Settings = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Dark Mode</p>
-              <p className="text-sm text-gray-500">Use dark theme</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Use dark theme</p>
             </div>
             <Switch 
               checked={settings.darkMode} 
@@ -162,7 +239,7 @@ const Settings = () => {
             </p>
             <div>
               <p className="font-medium">MindfulMe: Your Pocket Companion for Mental Wellness</p>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Nurturing Your Mind, One Moment at a Time.
               </p>
             </div>
