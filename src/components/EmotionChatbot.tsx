@@ -1,14 +1,16 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, Send, Bot } from 'lucide-react';
+import { MessageCircle, Send, Bot, Book, Film, Gamepad, Smile, Heart } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { analyzeSentiment } from '@/lib/sentimentAnalysis';
+import { getRecommendationsForEmotion } from '@/lib/mediaRecommendations';
+import EmotionMediaCard from './EmotionMediaCard';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface Message {
   id: string;
@@ -16,6 +18,7 @@ interface Message {
   sender: 'user' | 'bot';
   timestamp: Date;
   sentiment?: 'Positive' | 'Neutral' | 'Negative';
+  isMediaRecommendation?: boolean;
 }
 
 // Preset responses based on detected emotions
@@ -68,79 +71,35 @@ const generalResponses = [
 
 // Resources for different emotional states
 const emotionResources: Record<string, { title: string, description: string, link?: string }[]> = {
-  Sad: [
-    { 
-      title: "Practice Self-Compassion", 
-      description: "Treat yourself with the same kindness you would offer to a good friend."
-    },
-    { 
-      title: "Mindful Breathing", 
-      description: "Take 5 slow, deep breaths, focusing only on your breathing."
-    },
-    {
-      title: "Talk to Someone",
-      description: "Consider reaching out to a friend, family member, or professional."
-    }
-  ],
-  Anxious: [
-    {
-      title: "5-4-3-2-1 Grounding",
-      description: "Name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste."
-    },
-    {
-      title: "Progressive Muscle Relaxation",
-      description: "Tense and then release each muscle group in your body."
-    },
-    {
-      title: "Limit Media Consumption",
-      description: "Take breaks from news and social media that might increase anxiety."
-    }
-  ],
-  Angry: [
-    {
-      title: "Take a Time-Out",
-      description: "Step away from the situation until you can think more clearly."
-    },
-    {
-      title: "Physical Release",
-      description: "Try exercise, deep breathing, or safely punching a pillow."
-    },
-    {
-      title: "Express Yourself",
-      description: "Write down your thoughts or talk to someone you trust."
-    }
-  ]
+  // ... keep existing code (emotion resources data)
 };
 
 // Coping strategies for different emotions
 const copingStrategies: Record<string, string[]> = {
-  Sad: [
-    "Try going for a walk in nature",
-    "Listen to uplifting music",
-    "Call a friend who makes you smile",
-    "Watch a comedy show or movie",
-    "Practice gratitude by listing 3 things you appreciate"
+  // ... keep existing code (coping strategies data)
+};
+
+// Interactive activities to engage users
+const interactiveActivities: Record<string, string[]> = {
+  Breathing: [
+    "Let's try a simple breathing exercise. Inhale for 4 counts, hold for 4, and exhale for 6. Try this 5 times with me.",
+    "Box breathing can help calm your mind. Breathe in for 4, hold for 4, exhale for 4, hold for 4. Shall we try it together?",
+    "When you're ready, take a deep breath in through your nose for 5 seconds, then slowly release through your mouth. Let's do this 3 times."
   ],
-  Anxious: [
-    "Practice box breathing: inhale for 4, hold for 4, exhale for 4, hold for 4",
-    "Ground yourself by focusing on your five senses",
-    "Write down your worries to get them out of your head",
-    "Move your body with gentle stretching or walking",
-    "Limit caffeine and sugar which can increase anxiety"
+  Grounding: [
+    "Let's try a grounding exercise. Name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste.",
+    "To feel more present, try this: What are 3 colors you can see right now? What are 3 sounds you can hear?",
+    "Let's ground ourselves: Press your feet firmly into the floor and notice the sensation. How does it feel?"
   ],
-  Angry: [
-    "Count to 10 before responding",
-    "Take deep breaths to calm your nervous system",
-    "Use 'I feel' statements instead of blaming others",
-    "Step away from the situation temporarily",
-    "Channel the energy into physical activity"
+  Reflection: [
+    "What's one small thing that made you smile today, no matter how small?",
+    "If your emotion right now had a color, what would it be? Why that color?",
+    "On a scale of 1-10, how intensely are you feeling your current emotion? Has this intensity changed throughout the day?"
   ],
-  Neutral: [
-    "Try a new hobby or activity",
-    "Set a small goal for the day",
-    "Connect with a friend or family member",
-    "Practice mindfulness meditation",
-    "Engage in something creative"
+  Gratitude: [
+    "Let's practice gratitude. Can you name three things you're thankful for right now?",
+    "Sometimes focusing on what we appreciate can shift our perspective. What's something you're grateful for today?",
+    "Even on difficult days, there can be small moments to appreciate. Would you like to share something you're grateful for?"
   ]
 };
 
@@ -154,8 +113,11 @@ const EmotionChatbot = ({ detectedEmotion }: EmotionChatbotProps) => {
   const [isBotTyping, setIsBotTyping] = useState(false);
   const [showResources, setShowResources] = useState(false);
   const [currentEmotion, setCurrentEmotion] = useState<string | null>(null);
+  const [showMediaTab, setShowMediaTab] = useState(false);
+  const [mediaRecommendations, setMediaRecommendations] = useState<'books' | 'videos' | 'games' | 'all'>('all');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [activeInteraction, setActiveInteraction] = useState<string | null>(null);
 
   // Set currentEmotion when detectedEmotion changes
   useEffect(() => {
@@ -168,10 +130,10 @@ const EmotionChatbot = ({ detectedEmotion }: EmotionChatbotProps) => {
   useEffect(() => {
     const initialMessages: Message[] = [];
     
-    // Welcome message
+    // Welcome message with animated emojis
     initialMessages.push({
       id: `bot-${Date.now()}-1`,
-      content: "Hi there! I'm MindfulBot, your emotional support companion.",
+      content: "Hi there! 👋 I'm MindfulBot, your emotional support companion. I can help you process emotions, suggest resources, or just chat!",
       sender: 'bot',
       timestamp: new Date()
     });
@@ -190,16 +152,29 @@ const EmotionChatbot = ({ detectedEmotion }: EmotionChatbotProps) => {
       if (['Sad', 'Anxious', 'Angry'].includes(detectedEmotion)) {
         initialMessages.push({
           id: `bot-${Date.now()}-3`,
-          content: "I have some resources that might help with these feelings. Would you like to see them?",
+          content: "I have some resources and activities that might help with these feelings. You can ask me for suggestions anytime.",
           sender: 'bot',
           timestamp: new Date()
         });
       }
+
+      // Add suggestion for media recommendations
+      setTimeout(() => {
+        setMessages(prev => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}-4`,
+            content: `I can also recommend books, videos, or games that might resonate with how you're feeling. Just ask me for recommendations!`,
+            sender: 'bot',
+            timestamp: new Date()
+          }
+        ]);
+      }, 2000);
     } else {
       // General greeting if no emotion detected
       initialMessages.push({
         id: `bot-${Date.now()}-2`,
-        content: "How are you feeling today? I'm here to listen and support you.",
+        content: "How are you feeling today? I'm here to listen and support you. You can also ask me for book, video, or game recommendations related to emotions!",
         sender: 'bot',
         timestamp: new Date()
       });
@@ -218,6 +193,51 @@ const EmotionChatbot = ({ detectedEmotion }: EmotionChatbotProps) => {
     inputRef.current?.focus();
   }, []);
 
+  // Function to handle interactive activities
+  const handleInteractiveActivity = (category: string) => {
+    setActiveInteraction(category);
+    
+    const activities = interactiveActivities[category];
+    const randomActivity = activities[Math.floor(Math.random() * activities.length)];
+    
+    setIsBotTyping(true);
+    
+    setTimeout(() => {
+      const activityMessage: Message = {
+        id: `bot-activity-${Date.now()}`,
+        content: randomActivity,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, activityMessage]);
+      setIsBotTyping(false);
+    }, 1000);
+  };
+
+  // Function to show media recommendations
+  const showRecommendations = (emotion: string | null, type?: 'books' | 'videos' | 'games') => {
+    setIsBotTyping(true);
+    
+    setTimeout(() => {
+      const introMessage: Message = {
+        id: `bot-media-intro-${Date.now()}`,
+        content: `Here are some ${type || ''} recommendations that might resonate with your current feelings:`,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, introMessage]);
+      setShowMediaTab(true);
+      
+      if (type) {
+        setMediaRecommendations(type);
+      }
+      
+      setIsBotTyping(false);
+    }, 1000);
+  };
+
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
@@ -232,6 +252,11 @@ const EmotionChatbot = ({ detectedEmotion }: EmotionChatbotProps) => {
     setMessages(prevMessages => [...prevMessages, userMessage]);
     setInputValue('');
     setIsBotTyping(true);
+
+    // Reset active interaction when user sends a message
+    if (activeInteraction) {
+      setActiveInteraction(null);
+    }
 
     // Analyze sentiment of user message
     try {
@@ -253,6 +278,47 @@ const EmotionChatbot = ({ detectedEmotion }: EmotionChatbotProps) => {
 
     // Check for keywords in user message
     const message = inputValue.toLowerCase();
+    
+    // Check for media recommendations request
+    if (message.includes('recommend') || message.includes('suggestion')) {
+      if (message.includes('book')) {
+        showRecommendations(currentEmotion, 'books');
+        return;
+      } 
+      if (message.includes('video') || message.includes('watch')) {
+        showRecommendations(currentEmotion, 'videos');
+        return;
+      }
+      if (message.includes('game') || message.includes('play')) {
+        showRecommendations(currentEmotion, 'games');
+        return;
+      }
+      if (message.includes('media') || message.includes('content')) {
+        showRecommendations(currentEmotion);
+        return;
+      }
+    }
+    
+    // Check for interactive activities
+    if (message.includes('breathing') || message.includes('breath') || message.includes('breathe')) {
+      handleInteractiveActivity('Breathing');
+      return;
+    }
+    
+    if (message.includes('ground') || message.includes('present') || message.includes('here now')) {
+      handleInteractiveActivity('Grounding');
+      return;
+    }
+    
+    if (message.includes('gratitude') || message.includes('grateful') || message.includes('thankful')) {
+      handleInteractiveActivity('Gratitude');
+      return;
+    }
+    
+    if (message.includes('reflect') || message.includes('think about')) {
+      handleInteractiveActivity('Reflection');
+      return;
+    }
     
     // Check for resource requests
     if (message.includes('resource') || message.includes('help') || message.includes('suggest')) {
@@ -318,6 +384,19 @@ const EmotionChatbot = ({ detectedEmotion }: EmotionChatbotProps) => {
 
       setMessages(prevMessages => [...prevMessages, botMessage]);
       setIsBotTyping(false);
+      
+      // Sometimes suggest media after the bot responds
+      if (Math.random() > 0.7) {
+        setTimeout(() => {
+          const suggestMessage: Message = {
+            id: `bot-suggest-${Date.now()}`,
+            content: "Would you like me to recommend some books, videos, or games related to emotional wellbeing?",
+            sender: 'bot',
+            timestamp: new Date()
+          };
+          setMessages(prevMessages => [...prevMessages, suggestMessage]);
+        }, 2000);
+      }
     }, 1000 + Math.random() * 1000); // Random delay between 1-2 seconds
   };
 
@@ -336,8 +415,13 @@ const EmotionChatbot = ({ detectedEmotion }: EmotionChatbotProps) => {
     setShowResources(!showResources);
   };
 
+  const recommendations = getRecommendationsForEmotion(currentEmotion);
+  const books = recommendations.filter(item => item.type === 'book');
+  const videos = recommendations.filter(item => item.type === 'video');
+  const games = recommendations.filter(item => item.type === 'game');
+
   return (
-    <Card className="flex flex-col h-[500px] overflow-hidden rounded-xl shadow-lg border-2 border-mindful-soft">
+    <Card className="flex flex-col h-[600px] overflow-hidden rounded-xl shadow-lg border-2 border-mindful-soft animate-fade-in">
       <CardHeader className="py-3 bg-gradient-to-r from-mindful-primary to-mindful-secondary text-white">
         <CardTitle className="text-lg flex items-center">
           <MessageCircle className="mr-2 h-5 w-5" />
@@ -347,104 +431,220 @@ const EmotionChatbot = ({ detectedEmotion }: EmotionChatbotProps) => {
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 overflow-hidden p-0 bg-gradient-to-b from-white to-mindful-soft/20">
-        <ScrollArea className="h-full p-4">
-          {messages.map(message => (
-            <div
-              key={message.id}
-              className={`flex mb-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+      
+      {!showMediaTab ? (
+        <CardContent className="flex-1 overflow-hidden p-0 bg-gradient-to-b from-white to-mindful-soft/20">
+          <ScrollArea className="h-full p-4">
+            {messages.map(message => (
               <div
-                className={cn(
-                  "max-w-[80%] rounded-lg p-3 shadow-sm",
-                  message.sender === 'user' 
-                    ? "bg-gradient-to-r from-mindful-primary to-mindful-secondary text-white rounded-br-none" 
-                    : "bg-white border border-mindful-soft/50 text-gray-800 rounded-bl-none"
-                )}
+                key={message.id}
+                className={`flex mb-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                {message.sender === 'bot' && (
+                <div
+                  className={cn(
+                    "max-w-[80%] rounded-lg p-3 shadow-sm transition-all hover:shadow-md",
+                    message.sender === 'user' 
+                      ? "bg-gradient-to-r from-mindful-primary to-mindful-secondary text-white rounded-br-none" 
+                      : "bg-white border border-mindful-soft/50 text-gray-800 rounded-bl-none"
+                  )}
+                >
+                  {message.sender === 'bot' && (
+                    <div className="flex items-center mb-1">
+                      <Avatar className="h-6 w-6 mr-2 bg-mindful-primary/20">
+                        <Bot className="h-3 w-3 text-mindful-primary" />
+                      </Avatar>
+                      <span className="text-xs font-medium">MindfulBot</span>
+                    </div>
+                  )}
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <div className={`text-xs mt-1 flex items-center justify-between ${
+                    message.sender === 'user' ? 'text-white/70' : 'text-gray-500'
+                  }`}>
+                    <span>{formatTime(message.timestamp)}</span>
+                    {message.sentiment && message.sender === 'user' && (
+                      <span className={cn(
+                        "ml-2 px-1.5 py-0.5 rounded-full text-[10px]",
+                        message.sentiment === 'Positive' && "bg-green-100 text-green-700",
+                        message.sentiment === 'Neutral' && "bg-blue-100 text-blue-700",
+                        message.sentiment === 'Negative' && "bg-red-100 text-red-700"
+                      )}>
+                        {message.sentiment}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {isBotTyping && (
+              <div className="flex mb-4 justify-start">
+                <div className="bg-white border border-mindful-soft/50 text-gray-800 rounded-lg rounded-bl-none max-w-[80%] p-3 shadow-sm">
                   <div className="flex items-center mb-1">
                     <Avatar className="h-6 w-6 mr-2 bg-mindful-primary/20">
                       <Bot className="h-3 w-3 text-mindful-primary" />
                     </Avatar>
                     <span className="text-xs font-medium">MindfulBot</span>
                   </div>
-                )}
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                <div className={`text-xs mt-1 flex items-center justify-between ${
-                  message.sender === 'user' ? 'text-white/70' : 'text-gray-500'
-                }`}>
-                  <span>{formatTime(message.timestamp)}</span>
-                  {message.sentiment && message.sender === 'user' && (
-                    <span className={cn(
-                      "ml-2 px-1.5 py-0.5 rounded-full text-[10px]",
-                      message.sentiment === 'Positive' && "bg-green-100 text-green-700",
-                      message.sentiment === 'Neutral' && "bg-blue-100 text-blue-700",
-                      message.sentiment === 'Negative' && "bg-red-100 text-red-700"
-                    )}>
-                      {message.sentiment}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-          {isBotTyping && (
-            <div className="flex mb-4 justify-start">
-              <div className="bg-white border border-mindful-soft/50 text-gray-800 rounded-lg rounded-bl-none max-w-[80%] p-3 shadow-sm">
-                <div className="flex items-center mb-1">
-                  <Avatar className="h-6 w-6 mr-2 bg-mindful-primary/20">
-                    <Bot className="h-3 w-3 text-mindful-primary" />
-                  </Avatar>
-                  <span className="text-xs font-medium">MindfulBot</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 rounded-full bg-mindful-primary animate-pulse"></div>
-                  <div className="w-2 h-2 rounded-full bg-mindful-primary animate-pulse delay-75"></div>
-                  <div className="w-2 h-2 rounded-full bg-mindful-primary animate-pulse delay-150"></div>
-                </div>
-              </div>
-            </div>
-          )}
-          {showResources && currentEmotion && emotionResources[currentEmotion] && (
-            <div className="my-4 p-3 bg-mindful-soft/30 rounded-lg border border-mindful-soft/50">
-              <h4 className="font-medium text-sm text-mindful-primary mb-2">Resources for {currentEmotion} Feelings</h4>
-              <div className="space-y-2">
-                {emotionResources[currentEmotion].map((resource, index) => (
-                  <div key={index} className="p-2 bg-white rounded border border-mindful-soft/30 text-sm">
-                    <p className="font-medium">{resource.title}</p>
-                    <p className="text-gray-600 text-xs">{resource.description}</p>
-                    {resource.link && (
-                      <a 
-                        href={resource.link} 
-                        className="text-mindful-primary text-xs hover:underline"
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                      >
-                        Learn more
-                      </a>
-                    )}
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 rounded-full bg-mindful-primary animate-pulse"></div>
+                    <div className="w-2 h-2 rounded-full bg-mindful-primary animate-pulse delay-75"></div>
+                    <div className="w-2 h-2 rounded-full bg-mindful-primary animate-pulse delay-150"></div>
                   </div>
-                ))}
+                </div>
               </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </ScrollArea>
-      </CardContent>
+            )}
+            {showResources && currentEmotion && emotionResources[currentEmotion] && (
+              <div className="my-4 p-3 bg-mindful-soft/30 rounded-lg border border-mindful-soft/50 animate-fade-in">
+                <h4 className="font-medium text-sm text-mindful-primary mb-2">Resources for {currentEmotion} Feelings</h4>
+                <div className="space-y-2">
+                  {emotionResources[currentEmotion].map((resource, index) => (
+                    <div key={index} className="p-2 bg-white rounded border border-mindful-soft/30 text-sm hover:shadow-md transition-all">
+                      <p className="font-medium">{resource.title}</p>
+                      <p className="text-gray-600 text-xs">{resource.description}</p>
+                      {resource.link && (
+                        <a 
+                          href={resource.link} 
+                          className="text-mindful-primary text-xs hover:underline"
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                        >
+                          Learn more
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {activeInteraction && (
+              <div className="my-4 p-3 bg-purple-50 rounded-lg border border-purple-200 animate-fade-in">
+                <h4 className="font-medium text-sm text-mindful-primary mb-2">{activeInteraction} Exercise</h4>
+                <p className="text-sm text-gray-700">Try this activity and respond with your experience.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 text-xs"
+                  onClick={() => setActiveInteraction(null)}
+                >
+                  End Activity
+                </Button>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </ScrollArea>
+        </CardContent>
+      ) : (
+        <CardContent className="flex-1 overflow-hidden p-0 bg-gradient-to-b from-white to-mindful-soft/20">
+          <div className="flex justify-between items-center border-b p-2">
+            <h3 className="font-medium text-sm">Media Recommendations</h3>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setShowMediaTab(false)}
+            >
+              Back to Chat
+            </Button>
+          </div>
+          
+          <Tabs defaultValue={mediaRecommendations} className="p-4">
+            <TabsList className="grid grid-cols-4 mb-4">
+              <TabsTrigger value="all" onClick={() => setMediaRecommendations('all')}>All</TabsTrigger>
+              <TabsTrigger value="books" onClick={() => setMediaRecommendations('books')}>
+                <Book className="h-4 w-4 mr-1" /> Books
+              </TabsTrigger>
+              <TabsTrigger value="videos" onClick={() => setMediaRecommendations('videos')}>
+                <Film className="h-4 w-4 mr-1" /> Videos
+              </TabsTrigger>
+              <TabsTrigger value="games" onClick={() => setMediaRecommendations('games')}>
+                <Gamepad className="h-4 w-4 mr-1" /> Games
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="all" className="space-y-4">
+              {recommendations.length > 0 ? (
+                <div className="grid gap-4">
+                  {recommendations.map((media, idx) => (
+                    <EmotionMediaCard key={idx} media={media} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 p-4">No recommendations available</p>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="books" className="space-y-4">
+              {books.length > 0 ? (
+                <div className="grid gap-4">
+                  {books.map((book, idx) => (
+                    <EmotionMediaCard key={idx} media={book} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 p-4">No book recommendations available</p>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="videos" className="space-y-4">
+              {videos.length > 0 ? (
+                <div className="grid gap-4">
+                  {videos.map((video, idx) => (
+                    <EmotionMediaCard key={idx} media={video} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 p-4">No video recommendations available</p>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="games" className="space-y-4">
+              {games.length > 0 ? (
+                <div className="grid gap-4">
+                  {games.map((game, idx) => (
+                    <EmotionMediaCard key={idx} media={game} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 p-4">No game recommendations available</p>
+              )}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      )}
+      
       <CardFooter className="p-3 border-t bg-white">
         <div className="flex w-full items-center space-x-2">
-          {currentEmotion && ['Sad', 'Anxious', 'Angry'].includes(currentEmotion) && (
+          <div className="flex space-x-1">
+            {currentEmotion && ['Sad', 'Anxious', 'Angry'].includes(currentEmotion) && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleShowResources}
+                className="flex-shrink-0 h-9 w-9"
+                title="Show helpful resources"
+              >
+                <Heart size={18} className="text-red-500" />
+              </Button>
+            )}
             <Button
               variant="outline"
               size="icon"
-              onClick={handleShowResources}
-              className="flex-shrink-0"
-              title="Show helpful resources"
+              onClick={() => setShowMediaTab(true)}
+              className="flex-shrink-0 h-9 w-9"
+              title="Show media recommendations"
             >
-              <Bot size={18} />
+              <Book size={18} className="text-mindful-primary" />
             </Button>
-          )}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleInteractiveActivity('Breathing')}
+              className="flex-shrink-0 h-9 w-9 md:flex hidden"
+              title="Breathing exercise"
+            >
+              <Smile size={18} className="text-mindful-secondary" />
+            </Button>
+          </div>
+          
           <Input
             ref={inputRef}
             value={inputValue}
@@ -457,7 +657,7 @@ const EmotionChatbot = ({ detectedEmotion }: EmotionChatbotProps) => {
           <Button 
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || isBotTyping}
-            className="bg-mindful-primary hover:bg-mindful-secondary flex-shrink-0"
+            className="bg-gradient-to-r from-mindful-primary to-mindful-secondary hover:from-mindful-secondary hover:to-mindful-primary flex-shrink-0"
           >
             <Send className="h-4 w-4" />
           </Button>
