@@ -12,9 +12,10 @@ import AudioEmotionTab from '@/components/mood/AudioEmotionTab';
 import MoodContext from '@/components/mood/MoodContext';
 import MoodHistory from '@/components/mood/MoodHistory';
 import MoodRecommendations from '@/components/mood/MoodRecommendations';
+import EmotionChatbot from '@/components/EmotionChatbot';
 import { MoodEntry } from '@/lib/mockData';
 
-const emotions = ['Happy', 'Sad', 'Angry', 'Surprised', 'Neutral'];
+const emotions = ['Happy', 'Sad', 'Angry', 'Surprised', 'Neutral', 'Anxious', 'Excited'];
 
 const MoodTracker = () => {
   const [activeTab, setActiveTab] = useState('manual');
@@ -27,8 +28,10 @@ const MoodTracker = () => {
   const [emotionModel, setEmotionModel] = useState<any>(null);
   const [audioEmotion, setAudioEmotion] = useState<string | null>(null);
   const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
+  const [showChatbot, setShowChatbot] = useState(false);
+  const [accuracy, setAccuracy] = useState<number>(0);
   
-  const availableTags = ['Work', 'Family', 'Friends', 'Health', 'Sleep', 'Exercise', 'Meditation'];
+  const availableTags = ['Work', 'Family', 'Friends', 'Health', 'Sleep', 'Exercise', 'Meditation', 'Stress', 'Anxiety', 'Depression', 'Joy'];
 
   // Load the emotion detection model
   useEffect(() => {
@@ -62,6 +65,7 @@ const MoodTracker = () => {
 
   const handleAudioEmotionDetected = (result: AudioEmotionDetectionResult) => {
     setAudioEmotion(result.emotion);
+    setAccuracy(Math.round(result.confidence * 100));
     if (!selectedMood) {
       setSelectedMood(result.emotion);
     }
@@ -109,6 +113,24 @@ const MoodTracker = () => {
       description: `You're feeling ${selectedMood} (intensity: ${moodIntensity}/5)`
     });
 
+    // Ask if they want to talk to the chatbot if they're not feeling great
+    if (['Sad', 'Angry', 'Anxious'].includes(selectedMood) && !showChatbot) {
+      setTimeout(() => {
+        toast({
+          title: "Would you like some support?",
+          description: "Our emotional support chatbot can help you process these feelings.",
+          action: (
+            <Button
+              onClick={() => setShowChatbot(true)}
+              className="bg-mindful-primary hover:bg-mindful-secondary"
+            >
+              Chat now
+            </Button>
+          )
+        });
+      }, 1000);
+    }
+
     // Reset form
     setSelectedMood(null);
     setMoodIntensity(3);
@@ -124,8 +146,9 @@ const MoodTracker = () => {
     setActiveTab('manual');
   };
 
-  const handleEmotionDetected = (emotion: string) => {
+  const handleEmotionDetected = (emotion: string, confidence: number = 0) => {
     setDetectedEmotion(emotion);
+    setAccuracy(Math.round(confidence * 100));
   };
 
   const handleDeleteMoodEntry = (id: string) => {
@@ -138,92 +161,125 @@ const MoodTracker = () => {
     });
   };
 
+  const toggleChatbot = () => {
+    setShowChatbot(!showChatbot);
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-mindful-dark">Mood Tracker</h1>
-        <p className="text-gray-500">Record how you're feeling today</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-mindful-dark">Mood Tracker</h1>
+          <p className="text-gray-500">Record how you're feeling today</p>
+        </div>
+        <Button
+          onClick={toggleChatbot}
+          className={`${showChatbot ? 'bg-gray-300 hover:bg-gray-400' : 'bg-mindful-primary hover:bg-mindful-secondary'}`}
+        >
+          {showChatbot ? "Hide Chatbot" : "Emotional Support"}
+        </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>How are you feeling?</CardTitle>
-          <CardDescription>
-            Select your mood or use technology to help identify your emotions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <Tabs defaultValue="manual" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="manual">Manual Select</TabsTrigger>
-                <TabsTrigger value="camera">Camera Check-in</TabsTrigger>
-                <TabsTrigger value="voice">Voice Check-in</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="manual">
-                <MoodSelector 
-                  emotions={emotions} 
-                  selectedMood={selectedMood} 
-                  onMoodSelect={setSelectedMood} 
-                />
-              </TabsContent>
-              
-              <TabsContent value="camera">
-                <CameraEmotionDetector 
-                  emotionModel={emotionModel}
-                  onEmotionDetected={handleEmotionDetected}
-                  onUseEmotion={handleUseEmotion}
-                />
-              </TabsContent>
-              
-              <TabsContent value="voice">
-                <AudioEmotionTab 
-                  audioEmotion={audioEmotion}
-                  onEmotionDetected={handleAudioEmotionDetected}
-                  onUseEmotion={handleUseEmotion}
-                />
-              </TabsContent>
-            </Tabs>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border-2 border-mindful-soft shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-mindful-soft to-white">
+              <CardTitle>How are you feeling?</CardTitle>
+              <CardDescription>
+                Select your mood or use technology to help identify your emotions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <Tabs defaultValue="manual" value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="manual">Manual Select</TabsTrigger>
+                    <TabsTrigger value="camera">Camera Check-in</TabsTrigger>
+                    <TabsTrigger value="voice">Voice Check-in</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="manual">
+                    <MoodSelector 
+                      emotions={emotions} 
+                      selectedMood={selectedMood} 
+                      onMoodSelect={setSelectedMood} 
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="camera">
+                    <CameraEmotionDetector 
+                      emotionModel={emotionModel}
+                      onEmotionDetected={handleEmotionDetected}
+                      onUseEmotion={handleUseEmotion}
+                    />
+                    {accuracy > 0 && detectedEmotion && (
+                      <div className="mt-2 text-center text-sm text-gray-500">
+                        Detection confidence: {accuracy}%
+                      </div>
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="voice">
+                    <AudioEmotionTab 
+                      audioEmotion={audioEmotion}
+                      onEmotionDetected={handleAudioEmotionDetected}
+                      onUseEmotion={handleUseEmotion}
+                    />
+                    {accuracy > 0 && audioEmotion && (
+                      <div className="mt-2 text-center text-sm text-gray-500">
+                        Detection confidence: {accuracy}%
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
 
-            {/* Mood recommendations when mood is selected */}
-            {selectedMood && (
-              <div className="mt-6">
-                <MoodRecommendations 
-                  mood={selectedMood} 
-                  intensity={moodIntensity}
-                  tags={moodTags}
-                />
+                {/* Mood recommendations when mood is selected */}
+                {selectedMood && (
+                  <div className="mt-6">
+                    <MoodRecommendations 
+                      mood={selectedMood} 
+                      intensity={moodIntensity}
+                      tags={moodTags}
+                    />
+                  </div>
+                )}
+
+                {/* Mood context (intensity, tags, notes) */}
+                {selectedMood && (
+                  <MoodContext
+                    moodIntensity={moodIntensity}
+                    setMoodIntensity={setMoodIntensity}
+                    moodTags={moodTags}
+                    toggleTag={toggleTag}
+                    availableTags={availableTags}
+                    moodContext={moodContext}
+                    setMoodContext={setMoodContext}
+                  />
+                )}
               </div>
-            )}
+            </CardContent>
+            <CardFooter className="bg-gradient-to-r from-white to-mindful-soft">
+              <Button 
+                onClick={handleSubmit} 
+                className="w-full bg-mindful-primary hover:bg-mindful-secondary"
+                disabled={!selectedMood}
+              >
+                Save Mood Entry
+              </Button>
+            </CardFooter>
+          </Card>
 
-            {/* Mood context (intensity, tags, notes) */}
-            {selectedMood && (
-              <MoodContext
-                moodIntensity={moodIntensity}
-                setMoodIntensity={setMoodIntensity}
-                moodTags={moodTags}
-                toggleTag={toggleTag}
-                availableTags={availableTags}
-                moodContext={moodContext}
-                setMoodContext={setMoodContext}
-              />
-            )}
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button 
-            onClick={handleSubmit} 
-            className="w-full bg-mindful-primary hover:bg-mindful-secondary"
-            disabled={!selectedMood}
-          >
-            Save Mood Entry
-          </Button>
-        </CardFooter>
-      </Card>
+          {/* Mood History Card */}
+          <MoodHistory moodHistory={moodHistory} onDeleteEntry={handleDeleteMoodEntry} />
+        </div>
 
-      {/* Mood History Card */}
-      <MoodHistory moodHistory={moodHistory} onDeleteEntry={handleDeleteMoodEntry} />
+        {/* Emotion Chatbot Column */}
+        <div className={`transition-all duration-300 ${showChatbot ? 'opacity-100' : 'opacity-0 lg:opacity-100 hidden lg:block'}`}>
+          {showChatbot || window.innerWidth >= 1024 ? (
+            <EmotionChatbot detectedEmotion={selectedMood || detectedEmotion || audioEmotion} />
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 };
