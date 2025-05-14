@@ -14,6 +14,7 @@ import MoodHistory from '@/components/mood/MoodHistory';
 import MoodRecommendations from '@/components/mood/MoodRecommendations';
 import EmotionChatbot from '@/components/EmotionChatbot';
 import { MoodEntry } from '@/lib/mockData';
+import { MessageCircle } from 'lucide-react';
 
 const emotions = ['Happy', 'Sad', 'Angry', 'Surprised', 'Neutral', 'Anxious', 'Excited'];
 
@@ -61,6 +62,25 @@ const MoodTracker = () => {
         console.error('Error loading mood history:', e);
       }
     }
+
+    // Auto-open chatbot if there's detected negative emotions from previous session
+    const lastUserEmotion = localStorage.getItem('lastUserEmotion');
+    if (lastUserEmotion && ['Sad', 'Angry', 'Anxious'].includes(lastUserEmotion)) {
+      setTimeout(() => {
+        toast({
+          title: "Welcome back",
+          description: `Last time you were feeling ${lastUserEmotion}. Would you like to chat about it?`,
+          action: (
+            <Button
+              onClick={() => setShowChatbot(true)}
+              className="bg-mindful-primary hover:bg-mindful-secondary"
+            >
+              Chat now
+            </Button>
+          )
+        });
+      }, 2000);
+    }
   }, []);
 
   const handleAudioEmotionDetected = (result: AudioEmotionDetectionResult) => {
@@ -106,6 +126,7 @@ const MoodTracker = () => {
     
     // Save to localStorage
     localStorage.setItem('moodHistory', JSON.stringify(updatedHistory));
+    localStorage.setItem('lastUserEmotion', selectedMood);
 
     // Display toast
     toast({
@@ -144,11 +165,32 @@ const MoodTracker = () => {
   const handleUseEmotion = (emotion: string) => {
     setSelectedMood(emotion);
     setActiveTab('manual');
+    
+    toast({
+      title: "Emotion Selected",
+      description: `Using detected emotion: ${emotion}`,
+    });
   };
 
   const handleEmotionDetected = (emotion: string, confidence: number = 0) => {
     setDetectedEmotion(emotion);
     setAccuracy(Math.round(confidence * 100));
+    
+    // If strong confidence, suggest using it
+    if (confidence > 0.7 && !selectedMood) {
+      toast({
+        title: `Detected ${emotion}`,
+        description: "Would you like to use this detected emotion?",
+        action: (
+          <Button
+            onClick={() => handleUseEmotion(emotion)}
+            className="bg-mindful-primary hover:bg-mindful-secondary"
+          >
+            Use it
+          </Button>
+        )
+      });
+    }
   };
 
   const handleDeleteMoodEntry = (id: string) => {
@@ -169,27 +211,32 @@ const MoodTracker = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-mindful-dark">Mood Tracker</h1>
-          <p className="text-gray-500">Record how you're feeling today</p>
+          <h1 className="text-3xl font-bold text-mindful-dark mb-1">Mood Tracker</h1>
+          <p className="text-gray-500">Record how you're feeling and get personalized support</p>
         </div>
         <Button
           onClick={toggleChatbot}
-          className={`${showChatbot ? 'bg-gray-300 hover:bg-gray-400' : 'bg-mindful-primary hover:bg-mindful-secondary'}`}
+          className={`flex items-center gap-2 ${
+            showChatbot 
+            ? 'bg-gray-300 hover:bg-gray-400 text-gray-800' 
+            : 'bg-gradient-to-r from-mindful-primary to-mindful-secondary hover:from-mindful-secondary hover:to-mindful-primary text-white'
+          }`}
         >
-          {showChatbot ? "Hide Chatbot" : "Emotional Support"}
+          <MessageCircle size={18} />
+          {showChatbot ? "Hide Support" : "Emotional Support"}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card className="border-2 border-mindful-soft shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-mindful-soft to-white">
-              <CardTitle>How are you feeling?</CardTitle>
+          <Card className="border-2 border-mindful-soft shadow-lg overflow-hidden rounded-xl">
+            <CardHeader className="bg-gradient-to-r from-mindful-soft to-white pb-4">
+              <CardTitle className="text-xl text-mindful-dark">How are you feeling?</CardTitle>
               <CardDescription>
                 Select your mood or use technology to help identify your emotions
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5">
               <div className="space-y-6">
                 <Tabs defaultValue="manual" value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="grid w-full grid-cols-3">
@@ -198,7 +245,7 @@ const MoodTracker = () => {
                     <TabsTrigger value="voice">Voice Check-in</TabsTrigger>
                   </TabsList>
                   
-                  <TabsContent value="manual">
+                  <TabsContent value="manual" className="pt-4">
                     <MoodSelector 
                       emotions={emotions} 
                       selectedMood={selectedMood} 
@@ -206,7 +253,7 @@ const MoodTracker = () => {
                     />
                   </TabsContent>
                   
-                  <TabsContent value="camera">
+                  <TabsContent value="camera" className="pt-4">
                     <CameraEmotionDetector 
                       emotionModel={emotionModel}
                       onEmotionDetected={handleEmotionDetected}
@@ -219,7 +266,7 @@ const MoodTracker = () => {
                     )}
                   </TabsContent>
                   
-                  <TabsContent value="voice">
+                  <TabsContent value="voice" className="pt-4">
                     <AudioEmotionTab 
                       audioEmotion={audioEmotion}
                       onEmotionDetected={handleAudioEmotionDetected}
@@ -235,7 +282,7 @@ const MoodTracker = () => {
 
                 {/* Mood recommendations when mood is selected */}
                 {selectedMood && (
-                  <div className="mt-6">
+                  <div className="mt-6 animate-fade-in">
                     <MoodRecommendations 
                       mood={selectedMood} 
                       intensity={moodIntensity}
@@ -258,10 +305,10 @@ const MoodTracker = () => {
                 )}
               </div>
             </CardContent>
-            <CardFooter className="bg-gradient-to-r from-white to-mindful-soft">
+            <CardFooter className="bg-gradient-to-r from-white to-mindful-soft p-5">
               <Button 
                 onClick={handleSubmit} 
-                className="w-full bg-mindful-primary hover:bg-mindful-secondary"
+                className="w-full bg-gradient-to-r from-mindful-primary to-mindful-secondary hover:from-mindful-secondary hover:to-mindful-primary text-white"
                 disabled={!selectedMood}
               >
                 Save Mood Entry
@@ -274,7 +321,7 @@ const MoodTracker = () => {
         </div>
 
         {/* Emotion Chatbot Column */}
-        <div className={`transition-all duration-300 ${showChatbot ? 'opacity-100' : 'opacity-0 lg:opacity-100 hidden lg:block'}`}>
+        <div className={`transition-all duration-500 ${showChatbot ? 'opacity-100 transform-none' : 'opacity-0 lg:opacity-100 hidden lg:block'}`}>
           {showChatbot || window.innerWidth >= 1024 ? (
             <EmotionChatbot detectedEmotion={selectedMood || detectedEmotion || audioEmotion} />
           ) : null}

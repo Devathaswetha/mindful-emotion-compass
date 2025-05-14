@@ -34,29 +34,38 @@ export const loadAudioEmotionDetectionModel = async () => {
         // If we have a backend API, we could send the audio data to it
         const audioArrayBuffer = await audioData.arrayBuffer();
         
-        // Simple mock analysis of audio data to determine emotion
+        // Enhanced mock analysis of audio data to determine emotion
         // In a real app, this would be done with ML models
         const audioBytes = new Uint8Array(audioArrayBuffer);
         
-        // Simple frequency analysis (mock)
+        // Advanced audio feature extraction (mock)
         let totalAmplitude = 0;
         let highFreqContent = 0;
         let lowFreqContent = 0;
         let variability = 0;
+        let peakCount = 0;
+        let silenceCount = 0;
+        let previousValue = 128; // middle value for audio byte
         
-        // Extract simple audio features
+        // Extract improved audio features
         for (let i = 0; i < audioBytes.length; i++) {
-          totalAmplitude += audioBytes[i];
+          const value = audioBytes[i];
+          totalAmplitude += value;
           
-          if (i % 2 === 0) { // Even indices (rough proxy for high frequencies)
-            highFreqContent += audioBytes[i];
-          } else { // Odd indices (rough proxy for low frequencies)
-            lowFreqContent += audioBytes[i];
+          // Better frequency analysis
+          if (i % 4 < 2) { // Even chunks (rough proxy for high frequencies)
+            highFreqContent += value;
+          } else { // Odd chunks (rough proxy for low frequencies)
+            lowFreqContent += value;
           }
           
-          if (i > 0) {
-            variability += Math.abs(audioBytes[i] - audioBytes[i-1]);
-          }
+          // Detect peaks and silences
+          if (value > 200) peakCount++;
+          if (value < 50) silenceCount++;
+          
+          // Calculate variability (rate of change)
+          variability += Math.abs(value - previousValue);
+          previousValue = value;
         }
         
         // Normalize features
@@ -64,42 +73,56 @@ export const loadAudioEmotionDetectionModel = async () => {
         const normalizedHighFreq = highFreqContent / (audioBytes.length / 2);
         const normalizedLowFreq = lowFreqContent / (audioBytes.length / 2);
         const normalizedVariability = variability / audioBytes.length;
+        const normalizedPeakRate = peakCount / audioBytes.length;
+        const normalizedSilenceRate = silenceCount / audioBytes.length;
         
-        // Map features to emotions (very simplified mock)
+        // Improved emotion mapping with more features
         let emotion: string;
         let confidence: number;
         
-        // High amplitude + high variability = Excited or Happy
-        if (avgAmplitude > 128 && normalizedVariability > 20) {
-          emotion = Math.random() > 0.5 ? 'Excited' : 'Happy';
-          confidence = 0.7 + Math.random() * 0.2;
+        // Excited/Happy: High amplitude, high variability, many peaks
+        if (avgAmplitude > 140 && normalizedVariability > 25 && normalizedPeakRate > 0.1) {
+          emotion = normalizedHighFreq > normalizedLowFreq ? 'Excited' : 'Happy';
+          confidence = 0.75 + Math.random() * 0.2;
         } 
-        // Low amplitude + low variability = Sad or Neutral
-        else if (avgAmplitude < 100 && normalizedVariability < 15) {
-          emotion = Math.random() > 0.5 ? 'Sad' : 'Neutral';
-          confidence = 0.65 + Math.random() * 0.2;
+        // Sad: Low amplitude, low variability, many silences
+        else if (avgAmplitude < 100 && normalizedVariability < 15 && normalizedSilenceRate > 0.2) {
+          emotion = 'Sad';
+          confidence = 0.7 + Math.random() * 0.2;
         }
-        // High high-freq content = Anxious or Surprised
-        else if (normalizedHighFreq > normalizedLowFreq * 1.5) {
-          emotion = Math.random() > 0.5 ? 'Anxious' : 'Surprised';
-          confidence = 0.6 + Math.random() * 0.25;
-        }
-        // High low-freq content = Angry
-        else if (normalizedLowFreq > normalizedHighFreq * 1.5) {
+        // Angry: Medium-high amplitude, high low-frequency, high variability
+        else if (avgAmplitude > 120 && normalizedLowFreq > normalizedHighFreq * 1.3 && normalizedVariability > 20) {
           emotion = 'Angry';
-          confidence = 0.6 + Math.random() * 0.3;
+          confidence = 0.75 + Math.random() * 0.2;
         }
-        // Fallback to Neutral
+        // Anxious: Medium amplitude, high high-frequency, medium-high variability
+        else if (avgAmplitude > 100 && normalizedHighFreq > normalizedLowFreq * 1.3 && normalizedVariability > 15) {
+          emotion = 'Anxious';
+          confidence = 0.65 + Math.random() * 0.25;
+        }
+        // Surprised: Sudden peaks, high variability
+        else if (normalizedPeakRate > 0.08 && normalizedVariability > 30) {
+          emotion = 'Surprised';
+          confidence = 0.7 + Math.random() * 0.25;
+        }
+        // Neutral: Medium values across all features
+        else if (avgAmplitude > 90 && avgAmplitude < 140 && normalizedVariability < 20) {
+          emotion = 'Neutral';
+          confidence = 0.8 + Math.random() * 0.15;
+        }
+        // Fallback to Neutral with low confidence
         else {
           emotion = 'Neutral';
           confidence = 0.5 + Math.random() * 0.3;
         }
         
-        console.log('Audio analysis features:', {
+        console.log('Advanced audio analysis features:', {
           avgAmplitude,
           normalizedHighFreq,
           normalizedLowFreq,
           normalizedVariability,
+          normalizedPeakRate,
+          normalizedSilenceRate,
           detectedEmotion: emotion,
           confidence
         });
