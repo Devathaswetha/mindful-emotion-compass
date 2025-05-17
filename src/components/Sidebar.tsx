@@ -33,7 +33,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 transform bg-white shadow-lg transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 w-64 transform bg-white border-r border-border/40 shadow-sm transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
           {
             "translate-x-0": isOpen,
             "-translate-x-full": !isOpen,
@@ -57,10 +57,10 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                   <Link
                     to={item.href}
                     className={cn(
-                      "flex items-center space-x-2 rounded-md px-3 py-2 transition-all duration-200",
+                      "flex items-center space-x-2 rounded-lg px-3 py-2.5 transition-all duration-200",
                       location.pathname === item.href
                         ? "bg-mindful-soft text-mindful-primary font-medium shadow-sm"
-                        : "text-gray-600 hover:bg-gray-100"
+                        : "text-gray-600 hover:bg-gray-50"
                     )}
                     onClick={() => setIsOpen(false)}
                   >

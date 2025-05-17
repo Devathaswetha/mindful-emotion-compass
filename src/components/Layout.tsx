@@ -9,13 +9,13 @@ const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-[#f8fafc]">
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      <main className="flex-1 p-4 md:p-6 transition-all duration-300 ease-in-out">
+      <main className="flex-1 p-5 md:p-8 transition-all duration-300 ease-in-out">
         <div className="mb-6 flex items-center md:hidden">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-md bg-white shadow-sm hover:shadow-md transition-all duration-200"
+            className="p-2 rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-200"
             aria-label="Toggle sidebar"
           >
             <svg

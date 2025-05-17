@@ -67,12 +67,12 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				mindful: {
-					primary: '#9b87f5',
-					secondary: '#7E69AB',
-					tertiary: '#6E59A5',
-					dark: '#1A1F2C',
-					light: '#D6BCFA',
-					soft: '#E5DEFF',
+					primary: '#6366f1',
+					secondary: '#4f46e5',
+					tertiary: '#4338ca',
+					dark: '#1e1b4b',
+					light: '#c7d2fe',
+					soft: '#e0e7ff',
 				}
 			},
 			borderRadius: {
@@ -115,7 +115,7 @@ export default {
 			boxShadow: {
 				'soft': '0 4px 20px rgba(0, 0, 0, 0.05)',
 				'elevation': '0 10px 30px -5px rgba(0, 0, 0, 0.1)',
-				'card': '0 2px 10px rgba(155, 135, 245, 0.1)',
+				'card': '0 2px 10px rgba(99, 102, 241, 0.1)',
 			}
 		}
 	},
