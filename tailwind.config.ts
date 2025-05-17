@@ -19,6 +19,9 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				sans: ['Inter', 'sans-serif'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -97,12 +100,22 @@ export default {
 				'breathing': {
 					'0%, 100%': { transform: 'scale(0.95)' },
 					'50%': { transform: 'scale(1.05)' },
+				},
+				'shimmer': {
+					'0%': { transform: 'translateX(-100%)' },
+					'100%': { transform: 'translateX(100%)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
-				'breathing': 'breathing 4s infinite ease-in-out'
+				'breathing': 'breathing 4s infinite ease-in-out',
+				'shimmer': 'shimmer 2s infinite',
+			},
+			boxShadow: {
+				'soft': '0 4px 20px rgba(0, 0, 0, 0.05)',
+				'elevation': '0 10px 30px -5px rgba(0, 0, 0, 0.1)',
+				'card': '0 2px 10px rgba(155, 135, 245, 0.1)',
 			}
 		}
 	},

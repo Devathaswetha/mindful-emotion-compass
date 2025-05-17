@@ -11,11 +11,12 @@ const Layout = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      <main className="flex-1 p-4 md:p-6">
+      <main className="flex-1 p-4 md:p-6 transition-all duration-300 ease-in-out">
         <div className="mb-6 flex items-center md:hidden">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-md bg-white shadow-sm"
+            className="p-2 rounded-md bg-white shadow-sm hover:shadow-md transition-all duration-200"
+            aria-label="Toggle sidebar"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -27,7 +28,7 @@ const Layout = () => {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="h-6 w-6"
+              className="h-5 w-5"
             >
               <line x1="4" x2="20" y1="12" y2="12" />
               <line x1="4" x2="20" y1="6" y2="6" />
@@ -36,7 +37,9 @@ const Layout = () => {
             <span className="sr-only">Toggle Menu</span>
           </button>
         </div>
-        <Outlet />
+        <div className="animate-fade-in">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
